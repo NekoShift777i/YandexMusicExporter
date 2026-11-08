@@ -7,32 +7,42 @@ from pathlib import Path
 from auth import connect
 
 
-
-
 def escape_markdown(text: str) -> str:
-    """Точечно экранирует специальную разметку Markdown и Obsidian."""
-    import re
+    """Защищает названия от разметки Markdown и Obsidian."""
 
     text = str(text)
 
-    # Защищаем обратные косые черты.
-    text = text.replace("\\", "\\\\")
+    # Разделяем строку по последовательностям процентов.
+    parts = re.split(r"(%{2,})", text)
+    result = []
 
-    # Экранируем символы, влияющие на разметку Markdown.
-    text = re.sub(r"([*_`\[\]])", r"\\\1", text)
+    for part in parts:
+        if not part:
+            continue
 
-    # Защищаем управляющие символы в начале строки.
-    text = re.sub(r"^([ \t]*)([#>+-])(?=\s)", r"\1\\\2", text)
+        # Комментарии Obsidian защищаем встроенным кодом.
+        if re.fullmatch(r"%{2,}", part):
+            result.append(f"`{part}`")
+            continue
 
-    # Защищаем комментарии Obsidian.
-    text = re.sub(
-        r"%{2,}",
-        lambda match: f"`{match.group(0)}`",
-        text
-    )
+        # Экранируем обратную косую черту и апострофы кода.
+        part = part.replace("\\", "\\\\")
+        part = part.replace("`", "\\`")
 
-    return text
+        # Экранируем символы форматирования.
+        part = re.sub(r"([*_~\[\]])", r"\\\1", part)
 
+        # Защищаем решётку и восклицательный знак.
+        part = re.sub(r"([#!])", r"\\\1", part)
+
+        # Защищаем HTML-подобные конструкции.
+        part = part.replace("&", "&amp;")
+        part = part.replace("<", "&lt;")
+        part = part.replace(">", "&gt;")
+
+        result.append(part)
+
+    return "".join(result)
 
 
 def export_liked_tracks(output_path: str) -> tuple[int, int]:

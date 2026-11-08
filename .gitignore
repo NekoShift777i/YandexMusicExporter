@@ -1,5 +1,12 @@
-.venv
+# Временные файлы Python
+__pycache__/
+*.py[cod]
+
+# Виртуальное окружение
 .venv/
-venv
 venv/
-.env
+
+# Файлы сборки
+build/
+dist/
+*.spec
