@@ -3,11 +3,13 @@ import queue
 import threading
 import tkinter as tk
 import webbrowser
+import sys
 
 from pathlib import Path
 from tkinter import filedialog, messagebox
 
 from auth import authorize, connect, get_token
+from app_info import APP_WINDOW_TITLE
 from exporter import export_liked_tracks
 
 
@@ -15,9 +17,15 @@ class MusicExporterApp(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.title("Yandex Music Exporter")
+        self.title(APP_WINDOW_TITLE)
         self.geometry("580x360")
         self.minsize(500, 340)
+        if getattr(sys, "frozen", False):
+            base_path = Path(sys._MEIPASS)
+        else:
+            base_path = Path(__file__).resolve().parent
+
+        self.iconbitmap(str(base_path / "assets" / "icon.ico"))
 
         self.events = queue.Queue()
         self.auth_window = None
