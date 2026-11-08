@@ -1,6 +1,6 @@
 import re
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -47,7 +47,6 @@ def escape_markdown(text: str) -> str:
 
 def export_liked_tracks(output_path: str) -> tuple[int, int]:
     client = connect()
-
     likes = client.users_likes_tracks()
 
     if not likes or not likes.tracks:
@@ -63,7 +62,7 @@ def export_liked_tracks(output_path: str) -> tuple[int, int]:
     grouped = defaultdict(list)
     total = 0
 
-    # Получаем композиции порциями
+    # Получаем композиции порциями.
     for start in range(0, len(track_ids), 100):
         batch = track_ids[start:start + 100]
         tracks = client.tracks(batch)
@@ -73,17 +72,17 @@ def export_liked_tracks(output_path: str) -> tuple[int, int]:
                 continue
 
             title = track.title or "Без названия"
-
             if track.version:
                 title += f" ({track.version})"
 
             artists = ", ".join(
                 artist.name
-                for artist in track.artists
+                for artist in (track.artists or [])
                 if artist.name
             ) or "Неизвестный исполнитель"
 
-            grouped[artists].append(title)
+            # Сохраняем ID для устойчивой нумерации совпадений.
+            grouped[artists].append((title, int(track.id)))
             total += 1
 
     lines = [
@@ -95,10 +94,22 @@ def export_liked_tracks(output_path: str) -> tuple[int, int]:
     ]
 
     for artist in sorted(grouped, key=str.casefold):
+        entries = grouped[artist]
+        counts = Counter(title.casefold() for title, _ in entries)
+        variants = defaultdict(int)
+        titled_entries = []
+
+        # ID задаёт постоянный порядок вариантов внутри каждой группы.
+        for title, track_id in sorted(entries, key=lambda item: item[1]):
+            if counts[title.casefold()] > 1:
+                variants[title.casefold()] += 1
+                title += f" (Вариант {variants[title.casefold()]})"
+            titled_entries.append(title)
+
         lines.append(f"## {escape_markdown(artist)}")
         lines.append("")
 
-        for title in sorted(grouped[artist], key=str.casefold):
+        for title in sorted(titled_entries, key=str.casefold):
             lines.append(f"- {escape_markdown(title)}")
 
         lines.append("")
